@@ -28,7 +28,7 @@
 
 void visualize(list<PointSetShape*>& detectedShapes, vtkPoints* scene, vtkPoints* background);
 
-ModelRec::ModelRec(ros::NodeHandle* n, std::string pcl_pointcloud_channel, double pair_width, double voxel_size): n_(n), pcl_pointcloud_channel_(pcl_pointcloud_channel), max_cloud_queue_size(2), objrec_(pair_width, voxel_size, .004), success_probability_(0.99)
+ModelRec::ModelRec(ros::NodeHandle* n, std::string pcl_pointcloud_channel, double pair_width, double voxel_size): n_(n), pcl_pointcloud_channel_(pcl_pointcloud_channel), max_cloud_queue_size(2), objrec_(pair_width, voxel_size, 0.5), success_probability_(0.99) 
 {
 
   srv_recognizeScene = n_->advertiseService("recognize_objects", &ModelRec::runRecognitionCallback, this);
@@ -56,7 +56,7 @@ bool ModelRec::beginUpdatePCLPointCloud()
   foreground_vtk_cloud_ptr_ = vtkSmartPointer<vtkPoints>::New();
   background_vtk_cloud_ptr_ = vtkSmartPointer<vtkPoints>::New();
   cloud_queue.clear();
-  //  objrec_.clear_rec();
+  //  objrec_.clear_rec();  
   pcl_point_cloud_.reset(new PointCloud);
   pcl_pointcloud_sub_ = n_->subscribe<PointCloud>(pcl_pointcloud_channel_, 1, &ModelRec::cloudQueuingCallback, this);
   return true;
@@ -280,9 +280,9 @@ ModelRec::runRecognitionCallback(model_rec2::FindObjects::Request & req, model_r
 
   
   // visualize point clouds
-// #ifdef VISUALIZE_POINT_CLOUDS
-  visualize(detected_shapes_, vtk_cloud_ptr_, background_vtk_cloud_ptr_);
-// #endif
+ #ifdef VISUALIZE_POINT_CLOUDS
+  visualize(detected_shapes_, foreground_vtk_cloud_ptr_, background_vtk_cloud_ptr_);
+ #endif
 
 
   ROS_INFO("Number of shapes: %i\n", detected_shapes_.size());
@@ -411,14 +411,14 @@ void visualize(list<PointSetShape*>& detectedShapes, vtkPoints* scene, vtkPoints
           vtkwin.addToRenderer(scenePoints.getActor());
 
         // Visualize the background
-//        VtkPoints* backgroundPoints = NULL;
-//        if ( background )
-//        {
-//                backgroundPoints = new VtkPoints(background);
-//                backgroundPoints->selfAdjustPointRadius();
-//                backgroundPoints->setColor(0.8, 0.8, 0.8);
-//                vtkwin.addToRenderer(backgroundPoints->getActor());
-//        }
+        VtkPoints* backgroundPoints = NULL;
+        if ( background )
+        {
+                backgroundPoints = new VtkPoints(background);
+                backgroundPoints->selfAdjustPointRadius();
+                backgroundPoints->setColor(0.8, 0.8, 0.8);
+                vtkwin.addToRenderer(backgroundPoints->getActor());
+        }
 
         // The main vtk loop
         vtkwin.vtkMainLoop();
@@ -426,6 +426,6 @@ void visualize(list<PointSetShape*>& detectedShapes, vtkPoints* scene, vtkPoints
         // Cleanup
         for ( list<VtkPolyData*>::iterator it = transformedModelList.begin() ; it != transformedModelList.end() ; ++it )
                 delete *it;
-//        if ( backgroundPoints )
-//                delete backgroundPoints;
+        if ( backgroundPoints )
+                delete backgroundPoints;
 }
